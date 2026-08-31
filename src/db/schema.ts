@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   nif: varchar("nif", { length: 20 }),
   company: varchar("company", { length: 255 }),
   isActive: boolean("is_active").notNull().default(true),
+  tokenVersion: integer("token_version").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [index("users_email_idx").on(t.email), index("users_role_idx").on(t.role)]);
@@ -459,6 +460,27 @@ export const ORDER_TRANSITIONS: Record<string, string[]> = {
   expired: [],
   refunded: [],
 };
+
+// ─── SECURITY: RATE LIMITING (P1) ────────────────────────
+export const rateLimits = pgTable("rate_limits", {
+  id: serial("id").primaryKey(),
+  bucket: varchar("bucket", { length: 255 }).notNull(),
+  windowStart: timestamp("window_start").notNull(),
+  count: integer("count").notNull().default(0),
+}, (t) => [uniqueIndex("rate_limits_bucket_window_idx").on(t.bucket, t.windowStart)]);
+
+// ─── SECURITY: PASSWORD RESET TOKENS (P1) ─────────────────
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("prt_user_idx").on(t.userId)]);
+
+// ─── SECURITY: SESSION REVOCATION (P1) ────────────────────
+// tokenVersion stored on users; bumped to invalidate all issued JWTs.
 
 // ─── RMA STATUSES ─────────────────────────────────────────
 export const RMA_STATUSES = [

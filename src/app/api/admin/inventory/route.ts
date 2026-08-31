@@ -4,6 +4,7 @@ import { products, stockMovements } from "@/db/schema";
 import { eq, desc, sql, and, ilike } from "drizzle-orm";
 import { getCurrentUser, isStaff, isManager } from "@/lib/auth";
 import { createAuditLog } from "@/lib/audit";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
@@ -39,6 +40,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 

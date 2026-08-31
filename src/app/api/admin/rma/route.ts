@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { rmaRequests, users } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCurrentUser, isStaff } from "@/lib/auth";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -20,6 +21,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isStaff(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 

@@ -8,8 +8,11 @@ import { previewBulkPricing } from "@/lib/services/bulk-pricing-service";
 import { executeBulkPriceApply } from "@/lib/services/admin-operations";
 import { previewSchema, applySchema, simpleActionSchema } from "@/lib/bulk-schemas";
 import type { BulkPriceOp } from "@/lib/bulk-pricing";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 

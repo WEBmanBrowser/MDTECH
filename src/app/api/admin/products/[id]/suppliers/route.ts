@@ -7,6 +7,7 @@ import { createAuditLog } from "@/lib/audit";
 import { validate, createProductSupplierSchema, updateProductSupplierSchema } from "@/lib/validation";
 import { executeProductSupplierDelete } from "@/lib/services/admin-operations";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { csrfGuard } from "@/lib/csrf";
 
 function catchPSViolation(e: unknown): NextResponse | null {
   const msg = e instanceof Error ? e.message : "";
@@ -40,6 +41,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   const { id } = await params;
@@ -82,6 +85,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   const { id } = await params;
@@ -135,6 +140,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   const { id } = await params;

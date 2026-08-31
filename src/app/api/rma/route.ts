@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { rmaRequests } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -12,6 +13,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 

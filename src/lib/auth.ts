@@ -22,13 +22,13 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcryptjs.compare(password, hash);
 }
 
-export function createToken(payload: { userId: number; role: string }): string {
+export function createToken(payload: { userId: number; role: string; tokenVersion?: number }): string {
   return jwt.sign(payload, getJwtSecret(), { expiresIn: "7d" });
 }
 
-export function verifyToken(token: string): { userId: number; role: string } | null {
+export function verifyToken(token: string): { userId: number; role: string; tokenVersion?: number } | null {
   try {
-    return jwt.verify(token, getJwtSecret()) as { userId: number; role: string };
+    return jwt.verify(token, getJwtSecret()) as { userId: number; role: string; tokenVersion?: number };
   } catch {
     return null;
   }
@@ -84,6 +84,11 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     if (!payload) return null;
     const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
     if (!user || !user.isActive) return null;
+    // P1 server-side session revocation: a JWT issued before the user's
+    // current tokenVersion is rejected (logout-all, password reset, admin
+    // deactivation). Logout bumps the version server-side.
+    const issuedVersion = payload.tokenVersion ?? 0;
+    if (issuedVersion < (user.tokenVersion ?? 0)) return null;
     return {
       id: user.id,
       email: user.email,

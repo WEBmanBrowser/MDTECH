@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { products, coupons } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { toCents, toEuros, calcVatFromGross, lineTotal } from "@/lib/money";
+import { csrfGuard } from "@/lib/csrf";
 
 /**
  * POST /api/cart/quote
@@ -11,6 +12,8 @@ import { toCents, toEuros, calcVatFromGross, lineTotal } from "@/lib/money";
  * Returns: validated products with current prices, totals, stock status
  */
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   try {
     const body = await req.json();
     const { items, couponCode, deliveryType } = body;

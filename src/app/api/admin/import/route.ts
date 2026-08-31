@@ -7,11 +7,14 @@ import { slugify } from "@/lib/utils";
 import { createAuditLog } from "@/lib/audit";
 import { isValidGTIN } from "@/lib/validation";
 import { parseCSV, autoMapHeaders, applyMapping, CSV_MAX_SIZE } from "@/lib/csv";
+import { csrfGuard } from "@/lib/csrf";
 
 interface ImportError { row: number; field: string; value: string; code: string; message: string; }
 interface ImportResult { row: number; sku: string; name: string; action: "create" | "update" | "skip"; errors: ImportError[]; changes?: Record<string, { from: unknown; to: unknown }>; }
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 

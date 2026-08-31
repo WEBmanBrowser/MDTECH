@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { stockAlerts } from "@/db/schema";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const { email, productId } = await req.json();
   if (!email || !productId) return NextResponse.json({ error: "Dados em falta" }, { status: 400 });
 

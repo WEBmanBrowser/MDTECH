@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, isStaff } from "@/lib/auth";
 import { getAdminOrderDetail, listAdminOrders, updateAdminOrderStatus, updateOrderTracking } from "@/lib/services/admin-orders-service";
 import { z } from "zod";
+import { csrfGuard } from "@/lib/csrf";
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional(),
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isStaff(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 

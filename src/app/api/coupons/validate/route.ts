@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { coupons } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const { code, subtotal } = await req.json();
   if (!code) return NextResponse.json({ error: "Código obrigatório" }, { status: 400 });
 

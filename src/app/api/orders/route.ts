@@ -6,8 +6,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { generateOrderNumber } from "@/lib/utils";
 import { toCents, toEuros, calcVatFromGross, lineTotal as calcLineTotal, allocateDiscount, unitPriceNet as calcUnitPriceNet, getReservationMinutes } from "@/lib/money";
 import { sendEmail, orderCreatedEmail } from "@/lib/email";
+import { csrfGuard } from "@/lib/csrf";
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   try {
     const body = await req.json();
     const { items, billingAddress, shippingAddress, paymentMethod, shippingMethod,

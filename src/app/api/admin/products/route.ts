@@ -7,6 +7,7 @@ import { slugify } from "@/lib/utils";
 import { createAuditLog } from "@/lib/audit";
 import { isValidGTIN, createProductSchema, updateProductSchema, validate } from "@/lib/validation";
 import { buildAdminProductConditions } from "@/lib/product-filters";
+import { csrfGuard } from "@/lib/csrf";
 
 function catchUniqueViolation(e: unknown): NextResponse | null {
   const msg = e instanceof Error ? e.message : "";
@@ -57,6 +58,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
@@ -103,6 +106,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
@@ -166,6 +171,8 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const csrf = csrfGuard(req);
+  if (csrf) return csrf;
   const user = await getCurrentUser();
   if (!user || !isManager(user.role)) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   const body = await req.json() as Record<string, unknown>;

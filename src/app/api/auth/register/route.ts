@@ -4,7 +4,7 @@ import { users } from "@/db/schema";
 import { z } from "zod";
 import { hashPassword, createToken } from "@/lib/auth";
 import { csrfGuard } from "@/lib/csrf";
-import { checkRateLimit, rateLimitResponse, clientIdentifier } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse, rateLimitUnavailableResponse, clientIdentifier } from "@/lib/rate-limit";
 import { createAuditLog } from "@/lib/audit";
 
 const registerSchema = z.object({
@@ -23,6 +23,10 @@ export async function POST(req: NextRequest) {
     // Rate limit BEFORE touching the users table.
     const rl = await checkRateLimit("register", clientIdentifier(req));
     if (!rl.allowed) {
+      if (rl.infraFailure) {
+        const { body, headers } = rateLimitUnavailableResponse();
+        return NextResponse.json(body, { status: 503, headers });
+      }
       const { body, headers } = rateLimitResponse(rl);
       return NextResponse.json(body, { status: 429, headers });
     }

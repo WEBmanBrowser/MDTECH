@@ -20,6 +20,13 @@ export interface RateLimitResult {
   limit: number;
   /** Seconds until the window rolls over (for Retry-After). */
   retryAfter: number;
+  /**
+   * True when the limiter itself could not reach the DB. Callers must answer
+   * 503 (infrastructure failure) — never 429, which is reserved for an
+   * effectively exceeded limit. Fail-CLOSED for auth endpoints: without a
+   * working counter we cannot enforce brute-force protection.
+   */
+  infraFailure?: boolean;
 }
 
 export interface RateLimitRule {
@@ -81,9 +88,12 @@ export async function checkRateLimit(
       limit: rule.limit,
       retryAfter,
     };
-  } catch {
-    // Rate limiter DB failure must never lock users out of the app.
-    return { allowed: true, count: 0, limit: rule.limit, retryAfter };
+  } catch (e) {
+    // Fail-CLOSED: without a working counter we cannot enforce brute-force
+    // protection on auth endpoints, so callers must answer 503. Never leak
+    // DB details to the client; log the error server-side only.
+    console.error("[RATE-LIMIT] backend unavailable, rejecting request", e instanceof Error ? e.message : e);
+    return { allowed: false, count: 0, limit: rule.limit, retryAfter, infraFailure: true };
   }
 }
 
@@ -98,6 +108,21 @@ export function rateLimitResponse(result: RateLimitResult): {
   return {
     body: { error: "Muitas tentativas. Tente novamente mais tarde." },
     headers: { "Retry-After": String(result.retryAfter) },
+  };
+}
+
+/**
+ * Build a 503 response for rate-limiter infrastructure failure.
+ * Distinct from 429 (limit exceeded): no Retry-After promise, generic body
+ * that reveals nothing about the DB.
+ */
+export function rateLimitUnavailableResponse(): {
+  body: Record<string, unknown>;
+  headers: Record<string, string>;
+} {
+  return {
+    body: { error: "Serviço temporariamente indisponível. Tente novamente em instantes." },
+    headers: { "Retry-After": "30" },
   };
 }
 

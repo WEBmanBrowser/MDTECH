@@ -10,8 +10,12 @@
  *
  * NOT applied to (checked in order):
  *  - GET/HEAD/OPTIONS (safe methods)
- *  - requests authenticated by a secret header (cron / internal APIs):
- *    x-cron-secret / authorization: Bearer — no browser credentials involved
+ *  - requests whose secret credential is actually VALIDATED (cron / internal
+ *    APIs): x-cron-secret must MATCH the configured CRON_SECRET/JWT_SECRET.
+ *    Mere PRESENCE of a secret header NEVER bypasses the check — the
+ *    credential must actually verify. A Bearer header alone never bypasses:
+ *    Bearer callers without a cookie are already covered by the non-browser
+ *    rule below, and Bearer + cookie is browser-shaped (Origin required).
  *  - non-browser clients (no cookie AND no Origin): they are not CSRF-able;
  *    their authorization is handled by their own auth (JWT header etc.)
  *
@@ -43,12 +47,23 @@ function originMatchesHost(origin: string, host: string): boolean {
 }
 
 /**
+ * Validate the x-cron-secret credential against the configured secret.
+ * Returns true ONLY on an exact match — presence alone is never enough.
+ */
+function cronSecretValidates(cronSecret: string): boolean {
+  const expected = process.env.CRON_SECRET || process.env.JWT_SECRET;
+  if (!expected || !cronSecret) return false;
+  return cronSecret === expected;
+}
+
+/**
  * CSRF guard. Call at the top of state-changing route handlers.
  *
  * @param req incoming NextRequest
- * @param opts.allowSecretAuth skip the check when the request carries a
- *        valid secret credential (cron/webhook/internal API). Default true —
- *        those callers never carry browser cookies, so CSRF does not apply.
+ * @param opts.allowSecretAuth allow the check to be skipped when the request
+ *        carries a VALIDATED secret credential (cron/webhook/internal API).
+ *        Default true. Validation is exact-match against CRON_SECRET/JWT_SECRET —
+ *        a forged or absent secret falls through to the Origin check.
  * @returns null to continue, or a 403 NextResponse to return immediately.
  */
 export function csrfGuard(
@@ -62,12 +77,11 @@ export function csrfGuard(
   const origin = req.headers.get("origin");
   const host = req.headers.get("host") || "";
 
-  // Secret-authenticated callers (cron, webhooks, internal APIs): no browser
-  // credentials are involved, CSRF is not applicable.
+  // Secret-authenticated callers (cron, webhooks, internal APIs): the secret
+  // must actually VERIFY — a forged x-cron-secret does not bypass.
   if (opts.allowSecretAuth !== false) {
     const cronSecret = req.headers.get("x-cron-secret");
-    const authHeader = req.headers.get("authorization");
-    if (cronSecret || (authHeader && authHeader.toLowerCase().startsWith("bearer "))) {
+    if (cronSecret && cronSecretValidates(cronSecret)) {
       return null;
     }
   }
